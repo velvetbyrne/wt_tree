@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>War Thunder Tech Tree Maker</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+</head>
+<body>
+
+<header class="site-header" id="siteHeader">
+  <div class="header-actions" id="headerActions">
+    <input type="text" id="treeTitleInput" class="form-input tree-title-input" placeholder="Tech tree name…" style="width:160px;font-size:13px;padding:5px 8px;" />
+    <button class="btn btn-secondary" id="btnAddSection">+ Add Rank</button>
+    <button class="btn btn-secondary" id="btnAddColumn">+ Add Column</button>
+    <div class="export-dropdown-wrap" id="exportDropdownWrap">
+      <button class="btn btn-primary" id="btnExport">Export ▾</button>
+      <div class="export-dropdown" id="exportDropdown">
+        <button class="export-dd-item" id="btnExportJson">📄 Export JSON</button>
+        <button class="export-dd-item" id="btnExportPng">🖼 Export PNG</button>
+      </div>
+    </div>
+    <button class="btn btn-secondary" id="btnImport">Import JSON</button>
+    <button class="btn btn-screenshot" id="btnScreenshot" title="Toggle screenshot mode">Screenshot mode</button>
+    <button class="btn btn-hidelabels" id="btnHideLabels" title="Toggle column/track labels">Hide labels</button>
+    <button class="btn btn-danger"    id="btnReset">Reset</button>
+    <span id="ssHideHeadersWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#c8d0d4;margin-left:4px">
+      <input type="checkbox" id="ssHideHeadersCb" />
+      <label for="ssHideHeadersCb" style="cursor:pointer;white-space:nowrap">Hide category headers</label>
+    </span>
+    <input type="file" id="importFile" accept=".json" style="display:none"/>
+  </div>
+  <div class="header-left">
+    <span class="site-title">WT Tech Tree Maker</span>
+  </div>
+</header>
+
+<main class="tree-wrapper">
+  <div class="tree-scroll-area" id="treeScrollArea">
+    <div id="treeInnerBox">
+      <div class="column-headers-row" id="columnHeadersRow"></div>
+      <div class="rank-sections"      id="rankSections"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== VEHICLE DETAIL MODAL ===== -->
+<div class="modal-backdrop" id="vehicleModal">
+  <div class="modal vehicle-modal">
+    <div class="modal-header">
+      <span class="modal-title" id="vmTitle">Vehicle</span>
+      <div class="modal-header-actions">
+        <button class="btn btn-edit-popup" id="vmEditBtn">Edit</button>
+        <button class="btn btn-icon modal-close" data-modal="vehicleModal">✕</button>
+      </div>
+    </div>
+
+    <!-- VIEW MODE — styled like WT wiki popup -->
+    <div id="vmViewMode">
+      <!-- WT-style header: centered name, type, rank/BR row -->
+      <div class="wt-popup-header">
+        <div class="wt-popup-name" id="vmTitle2"></div>
+        <div class="wt-popup-type" id="vmTypeDisplay"></div>
+        <div class="wt-popup-rankbr">
+          <span id="vmRankDisplay"></span>
+          <span class="wt-popup-rankbr-sep" id="vmRankBRSep"></span>
+          <span id="vmBRDisplay"></span>
+        </div>
+      </div>
+
+      <!-- Image carousel (dark background) -->
+      <div class="vm-carousel" id="vmCarousel">
+        <div class="vm-carousel-track" id="vmCarouselTrack"></div>
+        <button class="vm-carousel-btn vm-carousel-prev" id="vmCarouselPrev">&#8249;</button>
+        <button class="vm-carousel-btn vm-carousel-next" id="vmCarouselNext">&#8250;</button>
+        <div class="vm-carousel-dots" id="vmCarouselDots"></div>
+        <div class="vm-carousel-caption" id="vmCarouselCaption"></div>
+      </div>
+      <!-- Thumbnail strip -->
+      <div class="vm-thumbs" id="vmThumbs"></div>
+
+      <!-- Manufacturer line (centered, dim) -->
+      <div class="wt-popup-mfg" id="vmManufacturerRow" style="display:none">
+        <span id="vmManufacturer"></span>
+      </div>
+
+      <!-- Weapons section with header -->
+      <div class="wt-popup-weapons hidden" id="vmWeaponsSection">
+        <div class="wt-popup-section-header">Weapons</div>
+        <div class="wt-popup-weapons-list" id="vmWeaponsList"></div>
+      </div>
+
+      <!-- Description section with header -->
+      <div class="wt-popup-desc-section">
+        <div class="wt-popup-section-header">Description</div>
+        <div class="vm-description markdown-body" id="vmDescription"></div>
+      </div>
+
+      <!-- Hidden legacy stat elements (keep IDs so JS doesn't break) -->
+      <span id="vmBR" style="display:none"></span>
+      <span id="vmType" style="display:none"></span>
+      <span id="vmPremium" style="display:none"></span>
+    </div>
+
+    <!-- EDIT MODE -->
+    <div id="vmEditMode" class="hidden">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="vmEditName" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label>Manufacturer</label>
+        <input type="text" id="vmEditManufacturer" class="form-input" placeholder="e.g. Mitsubishi" />
+      </div>
+      <div class="form-group">
+        <label>BR</label>
+        <div class="br-row">
+          <input type="number" id="vmEditBR" class="form-input" step="0.1" />
+          <label class="reserve-label"><input type="checkbox" id="vmEditReserve" /> Reserve</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type</label>
+          <div class="type-picker" id="vmEditTypeWrap">
+            <button type="button" class="type-picker-btn form-input" id="vmEditTypeBtn">— select type —</button>
+            <input type="hidden" id="vmEditType" />
+            <div class="type-picker-dropdown" id="vmEditTypeDropdown" style="display:none"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Sub-type <span class="form-hint">(optional)</span></label>
+          <input type="text" id="vmEditSubType" class="form-input" placeholder="e.g. Hydroplane" />
+        </div>
+      </div>
+      <!-- Image list (numbered, each with URL + upload + caption) -->
+      <div class="form-group">
+        <label>Images <span class="form-hint">(first = card thumbnail)</span>
+          <button type="button" class="btn-add-image" id="vmAddImgBtn">Add image</button>
+        </label>
+        <div id="vmImgList" class="img-editor-list"></div>
+        <!-- hidden file input shared by all "upload" clicks in edit modal -->
+        <input type="file" id="vmEditImgFileHidden" accept="image/*" style="display:none"/>
+      </div>
+      <!-- Weapons list -->
+      <div class="form-group">
+        <label>Weapons <span class="form-hint">(optional)</span>
+          <button type="button" class="btn-add-image" id="vmAddWeaponBtn">Add weapon</button>
+        </label>
+        <div id="vmWeaponList" class="weapon-editor-list"></div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="vmEditDesc" class="form-input" rows="4"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Item Color</label>
+          <div class="color-row">
+            <input type="color" id="vmEditColor" class="form-input color-picker" />
+            <button type="button" class="btn-color-preset" id="vmPresetResearch" title="Research" style="background:#314654">R</button>
+            <button type="button" class="btn-color-preset" id="vmPresetPremium"  title="Premium"  style="background:#3d361c">P</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-danger"    id="vmDeleteBtn">Delete</button>
+        <button class="btn btn-secondary" id="vmCancelEdit">Cancel</button>
+        <button class="btn btn-primary"   id="vmSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD VEHICLE MODAL ===== -->
+<div class="modal-backdrop" id="addVehicleModal">
+  <div class="modal add-vehicle-modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Vehicle</span>
+      <button class="btn btn-icon modal-close" data-modal="addVehicleModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="avName" class="form-input" />
+    </div>
+    <div class="form-group">
+      <label>Manufacturer</label>
+      <input type="text" id="avManufacturer" class="form-input" placeholder="e.g. Mitsubishi" />
+    </div>
+    <div class="form-group">
+      <label>BR</label>
+      <div class="br-row">
+        <input type="number" id="avBR" class="form-input" step="0.1" value="1.0" />
+        <label class="reserve-label"><input type="checkbox" id="avReserve" /> Reserve</label>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Type</label>
+        <div class="type-picker" id="avTypeWrap">
+          <button type="button" class="type-picker-btn form-input" id="avTypeBtn">— select type —</button>
+          <input type="hidden" id="avType" />
+          <div class="type-picker-dropdown" id="avTypeDropdown" style="display:none"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Sub-type <span class="form-hint">(optional)</span></label>
+        <input type="text" id="avSubType" class="form-input" placeholder="e.g. Hydroplane" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Images <span class="form-hint">(first = thumbnail)</span>
+        <button type="button" class="btn-add-image" id="avAddImgBtn">Add image</button>
+      </label>
+      <div id="avImgList" class="img-editor-list"></div>
+      <input type="file" id="avEditImgFileHidden" accept="image/*" style="display:none"/>
+    </div>
+    <!-- Weapons list -->
+    <div class="form-group">
+      <label>Weapons <span class="form-hint">(optional)</span>
+        <button type="button" class="btn-add-image" id="avAddWeaponBtn">Add weapon</button>
+      </label>
+      <div id="avWeaponList" class="weapon-editor-list"></div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="avDesc" class="form-input" rows="3"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:1">
+        <label>Item Color</label>
+        <div class="color-row">
+          <input type="color" id="avColor" class="form-input color-picker" value="#314654" />
+          <button type="button" class="btn-color-preset" id="avPresetResearch" title="Research" style="background:#314654">R</button>
+          <button type="button" class="btn-color-preset" id="avPresetPremium"  title="Premium"  style="background:#3d361c">P</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary modal-close" data-modal="addVehicleModal">Cancel</button>
+      <button class="btn btn-primary" id="avSaveBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD RANK MODAL ===== -->
+<div class="modal-backdrop" id="addSectionModal">
+  <div class="modal small-modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Rank Section</span>
+      <button class="btn btn-icon modal-close" data-modal="addSectionModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Rank Name</label>
+      <input type="text" id="sectionName" class="form-input" placeholder="Rank III" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary modal-close" data-modal="addSectionModal">Cancel</button>
+      <button class="btn btn-primary" id="sectionSaveBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD COLUMN MODAL ===== -->
+<div class="modal-backdrop" id="addColumnModal">
+  <div class="modal small-modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Column</span>
+      <button class="btn btn-icon modal-close" data-modal="addColumnModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Column Name</label>
+      <input type="text" id="colName" class="form-input" placeholder="Fighters" />
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select id="colType" class="form-input">
+        <option value="research">Researchable</option>
+        <option value="premium">Premium</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary modal-close" data-modal="addColumnModal">Cancel</button>
+      <button class="btn btn-primary" id="colSaveBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONNECTION EDIT MODAL ===== -->
+<div class="modal-backdrop" id="connectionModal">
+  <div class="modal conn-modal">
+    <div class="modal-header">
+      <span class="modal-title">Edit Connection</span>
+      <button class="btn btn-icon modal-close" data-modal="connectionModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>From Vehicle</label>
+      <div id="connFromName" class="conn-info-text"></div>
+    </div>
+    <div class="form-group">
+      <label>Connect to <span class="form-hint">(check all vehicles this one develops into)</span></label>
+      <div id="connCheckList" class="conn-check-list"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-danger"    id="connRemoveBtn">Remove All</button>
+      <button class="btn btn-secondary modal-close" data-modal="connectionModal">Cancel</button>
+      <button class="btn btn-primary"   id="connSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RENAME FOLDER MODAL ===== -->
+<div class="modal-backdrop" id="renameFolderModal">
+  <div class="modal small-modal">
+    <div class="modal-header">
+      <span class="modal-title">Rename Folder</span>
+      <button class="btn btn-icon modal-close" data-modal="renameFolderModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Custom Name <span class="form-hint">(leave blank to auto-generate)</span></label>
+      <input type="text" id="folderNameInput" class="form-input" placeholder="Auto" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary modal-close" data-modal="renameFolderModal">Cancel</button>
+      <button class="btn btn-primary" id="folderRenameSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EXPORT MODAL ===== -->
+<div class="modal-backdrop" id="exportModal">
+  <div class="modal small-modal">
+    <div class="modal-header">
+      <span class="modal-title">Export Tech Tree</span>
+      <button class="btn btn-icon modal-close" data-modal="exportModal">✕</button>
+    </div>
+    <div class="form-group">
+      <label>File name</label>
+      <div style="display:flex;align-items:center;gap:6px;padding:0 14px 4px">
+        <input type="text" id="exportFileName" class="form-input" placeholder="tech-tree" style="flex:1"/>
+        <span style="color:var(--text-dim);font-size:13px;white-space:nowrap">.json</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-dim);padding:2px 14px 6px">Your browser will save to its default download folder, or prompt you for a location depending on your browser settings.</p>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary modal-close" data-modal="exportModal">Cancel</button>
+      <button class="btn btn-primary" id="exportConfirmBtn">Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONTEXT MENU ===== -->
+<div class="context-menu" id="contextMenu">
+  <ul id="contextMenuList"></ul>
+</div>
+
+<script src="app.js"></script>
+<input type="hidden" id="vmEditPremium" value="false"/>
+<input type="hidden" id="avPremium" value="false"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>
