@@ -12,19 +12,34 @@
 
 <header class="site-header" id="siteHeader">
   <div class="header-actions" id="headerActions">
-    <input type="text" id="treeTitleInput" class="form-input tree-title-input" placeholder="Tech tree name…" style="width:160px;font-size:13px;padding:5px 8px;" />
+    <span class="site-title tree-title-editable" id="treeTitleDisplay">Tech Tree Name</span>
+    <input type="text" id="treeTitleInput" class="form-input tree-title-input" style="display:none;width:220px;font-size:16px;font-weight:600;padding:4px 8px;" />
+    <input type="text" id="searchInput" class="form-input header-search-input" placeholder="Search…" />
+    <div class="search-type-filter" id="searchTypeFilter" style="display:none"></div>
+    <button class="btn btn-secondary" id="btnStats" title="Show statistics">Stats</button>
+    <span class="hdr-divider"></span>
     <button class="btn btn-secondary" id="btnAddSection">+ Add Rank</button>
     <button class="btn btn-secondary" id="btnAddColumn">+ Add Column</button>
     <div class="export-dropdown-wrap" id="exportDropdownWrap">
       <button class="btn btn-primary" id="btnExport">Export ▾</button>
       <div class="export-dropdown" id="exportDropdown">
-        <button class="export-dd-item" id="btnExportJson">📄 Export JSON</button>
-        <button class="export-dd-item" id="btnExportPng">🖼 Export PNG</button>
+        <button class="export-dd-item" id="btnExportJson">Export JSON</button>
+        <button class="export-dd-item" id="btnExportPng">Export PNG</button>
       </div>
     </div>
+    <span class="hdr-divider"></span>
     <button class="btn btn-secondary" id="btnImport">Import JSON</button>
     <button class="btn btn-screenshot" id="btnScreenshot" title="Toggle screenshot mode">Screenshot mode</button>
-    <button class="btn btn-hidelabels" id="btnHideLabels" title="Toggle column/track labels">Hide labels</button>
+    <div class="hide-dropdown-wrap" id="hideDropdownWrap">
+      <button class="btn btn-hidelabels" id="btnHideLabels">View ▾</button>
+      <div class="hide-dropdown" id="hideDropdown">
+        <label class="hide-dd-item"><input type="checkbox" id="cbHideLabels" /> Hide column labels</label>
+        <label class="hide-dd-item"><input type="checkbox" id="cbHideArrows" /> Hide arrows</label>
+        <label class="hide-dd-item"><input type="checkbox" id="cbHideBR" /> Hide BR</label>
+        <label class="hide-dd-item"><input type="checkbox" id="cbHideTypeIco" /> Hide type symbols</label>
+        <label class="hide-dd-item"><input type="checkbox" id="cbHidePremium" /> Hide premium track</label>
+      </div>
+    </div>
     <button class="btn btn-danger"    id="btnReset">Reset</button>
     <span id="ssHideHeadersWrap" style="display:none;align-items:center;gap:5px;font-size:12px;color:#c8d0d4;margin-left:4px">
       <input type="checkbox" id="ssHideHeadersCb" />
@@ -110,15 +125,22 @@
         <label>Name</label>
         <input type="text" id="vmEditName" class="form-input" />
       </div>
-      <div class="form-group">
-        <label>Manufacturer</label>
-        <input type="text" id="vmEditManufacturer" class="form-input" placeholder="e.g. Mitsubishi" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Manufacturer / Designation</label>
+          <input type="text" id="vmEditManufacturer" class="form-input" placeholder="Manufacturer" />
+        </div>
+        <div class="form-group">
+          <label>Prefix <span class="form-hint">(optional)</span></label>
+          <input type="text" id="vmEditPrefix" class="form-input" placeholder="e.g. Country/Pilot" />
+        </div>
       </div>
       <div class="form-group">
         <label>BR</label>
         <div class="br-row">
           <input type="number" id="vmEditBR" class="form-input" step="0.1" />
           <label class="reserve-label"><input type="checkbox" id="vmEditReserve" /> Reserve</label>
+          <label class="reserve-label"><input type="checkbox" id="vmEditNewItem" /> New item ribbon</label>
         </div>
       </div>
       <div class="form-row">
@@ -132,7 +154,7 @@
         </div>
         <div class="form-group">
           <label>Sub-type <span class="form-hint">(optional)</span></label>
-          <input type="text" id="vmEditSubType" class="form-input" placeholder="e.g. Hydroplane" />
+          <input type="text" id="vmEditSubType" class="form-input" placeholder="Role" />
         </div>
       </div>
       <!-- Image list (numbered, each with URL + upload + caption) -->
@@ -160,8 +182,9 @@
           <label>Item Color</label>
           <div class="color-row">
             <input type="color" id="vmEditColor" class="form-input color-picker" />
-            <button type="button" class="btn-color-preset" id="vmPresetResearch" title="Research" style="background:#314654">R</button>
-            <button type="button" class="btn-color-preset" id="vmPresetPremium"  title="Premium"  style="background:#3d361c">P</button>
+            <button type="button" class="btn-color-preset" id="vmPresetResearch" title="Research" style="background:#314654">Research</button>
+            <button type="button" class="btn-color-preset" id="vmPresetPremium"  title="Premium"  style="background:#3d361c">Premium</button>
+            <button type="button" class="btn-color-preset" id="vmPresetWarbonds" title="Warbonds" style="background:#344c30">Warbonds</button>
           </div>
         </div>
       </div>
@@ -185,15 +208,22 @@
       <label>Name</label>
       <input type="text" id="avName" class="form-input" />
     </div>
-    <div class="form-group">
-      <label>Manufacturer</label>
-      <input type="text" id="avManufacturer" class="form-input" placeholder="e.g. Mitsubishi" />
+    <div class="form-row">
+      <div class="form-group">
+        <label>Manufacturer</label>
+        <input type="text" id="avManufacturer" class="form-input" placeholder="Manufacturer" />
+      </div>
+      <div class="form-group">
+        <label>Prefix <span class="form-hint">(optional)</span></label>
+        <input type="text" id="avPrefix" class="form-input" placeholder="e.g. Country/Pilot" />
+      </div>
     </div>
     <div class="form-group">
       <label>BR</label>
       <div class="br-row">
         <input type="number" id="avBR" class="form-input" step="0.1" value="1.0" />
         <label class="reserve-label"><input type="checkbox" id="avReserve" /> Reserve</label>
+        <label class="reserve-label"><input type="checkbox" id="avNewItem" /> New item ribbon</label>
       </div>
     </div>
     <div class="form-row">
@@ -207,7 +237,7 @@
       </div>
       <div class="form-group">
         <label>Sub-type <span class="form-hint">(optional)</span></label>
-        <input type="text" id="avSubType" class="form-input" placeholder="e.g. Hydroplane" />
+        <input type="text" id="avSubType" class="form-input" placeholder="Role" />
       </div>
     </div>
     <div class="form-group">
@@ -233,8 +263,9 @@
         <label>Item Color</label>
         <div class="color-row">
           <input type="color" id="avColor" class="form-input color-picker" value="#314654" />
-          <button type="button" class="btn-color-preset" id="avPresetResearch" title="Research" style="background:#314654">R</button>
-          <button type="button" class="btn-color-preset" id="avPresetPremium"  title="Premium"  style="background:#3d361c">P</button>
+          <button type="button" class="btn-color-preset" id="avPresetResearch" title="Research" style="background:#314654">Research</button>
+          <button type="button" class="btn-color-preset" id="avPresetPremium"  title="Premium"  style="background:#3d361c">Premium</button>
+          <button type="button" class="btn-color-preset" id="avPresetWarbonds" title="Warbonds" style="background:#344c30">Warbonds</button>
         </div>
       </div>
     </div>
@@ -351,12 +382,36 @@
   </div>
 </div>
 
+
+<!-- ===== STATISTICS MODAL ===== -->
+<div class="modal-backdrop" id="statsModal">
+  <div class="modal small-modal">
+    <div class="modal-header">
+      <span class="modal-title">Tree Statistics</span>
+      <button class="btn btn-icon modal-close" data-modal="statsModal">✕</button>
+    </div>
+    <div id="statsContent" style="padding:14px;font-size:13px;line-height:1.8;color:var(--text)"></div>
+  </div>
+</div>
+
 <!-- ===== CONTEXT MENU ===== -->
 <div class="context-menu" id="contextMenu">
   <ul id="contextMenuList"></ul>
 </div>
 
-<script src="app.js"></script>
+<!-- Scripts loaded in dependency order -->
+<script src="scripts/state.js"></script>
+<script src="scripts/types.js"></script>
+<script src="scripts/search.js"></script>
+<script src="scripts/storage.js"></script>
+<script src="scripts/arrows.js"></script>
+<script src="scripts/columns.js"></script>
+<script src="scripts/sections.js"></script>
+<script src="scripts/crud.js"></script>
+<script src="scripts/modals.js"></script>
+<script src="scripts/utils.js"></script>
+<script src="scripts/context.js"></script>
+<script src="scripts/ui.js"></script>
 <input type="hidden" id="vmEditPremium" value="false"/>
 <input type="hidden" id="avPremium" value="false"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
