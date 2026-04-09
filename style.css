@@ -63,15 +63,23 @@ body.screenshot-mode .tree-scroll-area{
 .btn-screenshot:hover{background:#354050;color:var(--text-bright)}
 
 /* Color presets */
-.color-row{display:flex;align-items:center;gap:4px}
-.color-row .form-input.color-picker{flex:1}
-.btn-color-preset{width:22px;height:28px;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;font-weight:700;color:#c8d0d4;flex-shrink:0}
-.btn-color-preset:hover{border-color:var(--accent)}
+.color-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.color-row .form-input.color-picker{width:52px;flex-shrink:0}
+.btn-color-preset{
+  flex:1;min-width:64px;height:32px;
+  border:2px solid var(--border);border-radius:3px;
+  cursor:pointer;font-size:11px;font-weight:700;
+  color:#e8edf0;letter-spacing:.5px;
+  text-shadow:0 1px 2px rgba(0,0,0,.8);
+  transition:border-color .15s,filter .15s;
+}
+.btn-color-preset:hover{border-color:var(--accent);filter:brightness(1.15)}
 
 /* ── TREE LAYOUT ── */
 .tree-wrapper{overflow:auto;height:calc(100vh - 56px);background:#161617}
 
-.tree-scroll-area{padding:32px 48px 80px;display:flex;flex-direction:column;align-items:center;min-width:100%;box-sizing:border-box}
+.tree-scroll-area{padding:32px 48px 80px;display:flex;flex-direction:column;align-items:flex-start;min-width:max-content;box-sizing:border-box}
+#treeInnerBox{margin:0 auto;}
 
 /* Column headers */
 .column-headers-row{display:flex;align-items:stretch;width:100%}
@@ -556,3 +564,156 @@ body.screenshot-hide-headers .col-header-group{padding-top:0}
   font-family:inherit;white-space:nowrap;
 }
 .export-dd-item:hover{background:rgba(91,158,201,.15);color:var(--text-bright)}
+
+/* ── FOLDER CLOSED: TAB STYLE ── */
+.folder-closed-wrap{
+  display:inline-block;
+  position:relative;
+  margin:2px 0;
+  cursor:pointer;
+  user-select:none;
+}
+/* The tab: small rectangle that pokes up above the card body */
+.folder-tab{
+  display:block;
+  width:52px;           /* tab width ~1/4 of card */
+  height:8px;           /* how far it sticks up */
+  position:relative;
+  /* Tab sits flush left of the card, bottom edge connects to card top */
+  margin-bottom:0;
+  border:1px solid;
+  border-bottom:none;   /* no bottom border — merges with card top */
+  border-radius:0;
+}
+.folder-closed-wrap .vehicle-card{
+  display:block;
+  margin:0;
+}
+/* Hover state on wrapper */
+.folder-closed-wrap:hover .vehicle-card{border-color:var(--accent)!important}
+.folder-closed-wrap:hover .folder-tab{border-color:var(--accent)!important}
+
+/* ── HIDE DROPDOWN ── */
+.hide-dropdown-wrap{position:relative;display:inline-block}
+.hide-dropdown{
+  display:none;position:absolute;top:100%;left:0;margin-top:4px;
+  background:#1e2a30;border:1px solid var(--border);border-radius:3px;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:600;min-width:190px;
+  padding:6px 0;
+}
+.hide-dropdown.open{display:block}
+.hide-dd-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 14px;cursor:pointer;font-size:13px;color:var(--text);
+  user-select:none;transition:background .1s;
+}
+.hide-dd-item:hover{background:rgba(91,158,201,.12);color:var(--text-bright)}
+.hide-dd-item input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+
+/* ── HIDE ARROWS ── */
+body.hide-arrows-mode #crossArrowSvg{display:none}
+
+/* ── HIDE BR ── */
+body.hide-br-mode .card-br{display:none!important}
+body.hide-br-mode .fv-br{display:none!important}
+/* When BR is hidden, card-br-wrap still shows (for type icon) but anchors right */
+body.hide-br-mode .card-br-wrap{right:6px;bottom:4px;}
+/* fv-br-row keeps showing for type icon */
+body.hide-br-mode .fv-br-row .fv-br{display:none!important}
+
+/* ── HIDE TYPE SYMBOLS ── */
+body.hide-type-ico-mode .card-type-ico,
+body.hide-type-ico-mode .fv-type-ico{display:none!important}
+
+/* ── EDITABLE TREE TITLE ── */
+.tree-title-editable{
+  font-size:18px;font-weight:600;color:var(--text-bright);letter-spacing:.5px;
+  cursor:default;white-space:nowrap;
+}
+.tree-title-editable:hover{text-decoration:underline dotted rgba(200,208,212,.4);cursor:text}
+
+/* ── SEARCH HIGHLIGHT ── */
+.search-highlight{
+  outline:2px solid #e8c060!important;
+  outline-offset:1px;
+  z-index:2;
+  position:relative;
+}
+.search-dim{
+  opacity:.3;
+  filter:brightness(.6);
+  transition:opacity .15s,filter .15s;
+}
+
+/* ── TYPE FILTER DROPDOWN ── */
+.search-type-filter{position:relative;display:inline-block}
+.type-filter-btn{font-size:12px;padding:5px 10px;white-space:nowrap}
+.type-filter-dropdown{
+  display:none;position:absolute;top:100%;left:0;margin-top:4px;
+  background:#1a2428;border:1px solid var(--border);border-radius:3px;
+  box-shadow:0 6px 20px rgba(0,0,0,.6);z-index:700;
+  max-height:300px;overflow-y:scroll;min-width:200px;
+  scrollbar-width:thin;scrollbar-color:var(--border) #1a2428;
+}
+.type-filter-dropdown.open{display:block}
+.type-filter-row{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 12px;cursor:pointer;font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s;
+}
+.type-filter-row:hover{background:rgba(91,158,201,.12)}
+.type-filter-row input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+
+/* ── HEADER SEARCH INPUT (same height as buttons) ── */
+.header-search-input{
+  height:34px; /* matches btn padding:7px*2 + font:13px*1.2 ≈ 34px */
+  padding:0 10px;
+  font-size:13px;
+  width:140px;
+  box-sizing:border-box;
+  line-height:1;
+}
+/* Type filter button matches .btn height automatically via .btn class */
+.type-filter-btn{height:34px;box-sizing:border-box;}
+
+/* ── HEADER VERTICAL DIVIDERS ── */
+.hdr-divider{
+  display:inline-block;
+  width:1px;
+  height:24px;
+  background:var(--col-divider);
+  align-self:center;
+  flex-shrink:0;
+  margin:0 2px;
+}
+
+/* ── HIDE PREMIUM TRACK ── */
+body.hide-premium-mode .col-header-group[data-coltype="premium"],
+body.hide-premium-mode .col-header-divider,
+body.hide-premium-mode .col-track[data-premium="true"],
+body.hide-premium-mode .col-track-divider{ display:none!important }
+
+/* ── STATS TABBER ── */
+.stat-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:8px}
+.stat-tab{
+  background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--text-dim);font-size:12px;padding:4px 12px;cursor:pointer;
+  font-family:inherit;transition:color .15s,border-color .15s;
+  margin-bottom:-1px;
+}
+.stat-tab:hover{color:var(--text-bright)}
+.stat-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.stat-pane.hidden{display:none}
+
+/* ── NEW ITEM RIBBON (WT-style diagonal corner stripe) ── */
+.card-ribbon{
+  position:absolute;top:0;left:0;z-index:2;
+  pointer-events:none;
+  /* flush with card corner */
+}
+
+/* ── LOCAL FILE TAG in image editor ── */
+.img-local-tag{
+  flex:1;font-size:12px;color:#8ab0c8;font-style:italic;
+  padding:4px 6px;background:rgba(0,0,0,.2);border-radius:2px;
+}
