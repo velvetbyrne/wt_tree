@@ -45,6 +45,11 @@ function buildTypeFilterDropdown(){
   btn.addEventListener('click',e=>{e.stopPropagation(); dd.classList.toggle('open');});
   dd.addEventListener('click',e=>e.stopPropagation());
   document.addEventListener('click',()=>dd.classList.remove('open'));
+
+  // Hook for dev_mode.js — called after the dropdown is fully built
+  if(typeof window.__devModeOnDropdownReady === 'function'){
+    window.__devModeOnDropdownReady(dd, btn);
+  }
 }
 
 function bindSearch(){
