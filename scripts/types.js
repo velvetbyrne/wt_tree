@@ -9,7 +9,7 @@ const VEHICLE_TYPES = [
   { cat:'Ground Vehicles', name:'Light Tank',     color:'#ffeeee', svg:'<rect height="9" width="21" y="3" x="0" fill="#ffeeee"/>' },
   { cat:'Ground Vehicles', name:'Medium Tank',    color:'#ffaaaa', svg:'<rect height="9" width="21" y="3" x="0" fill="#ffaaaa"/><rect height="4" width="6" y="11" x="0" fill="#ffaaaa"/><rect height="4" width="6" y="11" x="15" fill="#ffaaaa"/>' },
   { cat:'Ground Vehicles', name:'Heavy Tank',     color:'#ff6666', svg:'<rect height="9" width="21" y="3" x="0" fill="#ff6666"/><rect height="4" width="6" y="11" x="0" fill="#ff6666"/><rect height="4" width="6" y="11" x="15" fill="#ff6666"/><rect height="4" width="7" y="0" x="7" fill="#ff6666"/>' },
-  { cat:'Ground Vehicles', name:'Tank Destroyer',  color:'#bde9b5', svg:'<rect height="5" width="21" y="10" x="0" fill="#bde9b5"/><line y2="10" x2="0" y1="0" x1="21" stroke-width="3" stroke="#bde9b5"/>' },
+  { cat:'Ground Vehicles', name:'SPG',  color:'#bde9b5', svg:'<rect height="5" width="21" y="10" x="0" fill="#bde9b5"/><line y2="10" x2="0" y1="0" x1="21" stroke-width="3" stroke="#bde9b5"/>' },
   { cat:'Ground Vehicles', name:'SPAA',            color:'#c6a0ff', svg:'<rect height="5" width="21" y="10" x="0" fill="#c6a0ff"/><rect height="11" width="4" y="0" x="4" fill="#c6a0ff"/><rect height="11" width="4" y="0" x="13" fill="#c6a0ff"/>' },
   { cat:'Coastal Fleet', name:'Torpedo Boat',  color:'#01d1de', svg:'<path stroke-width="2" d="M20 1L.75 7 20 13z" stroke="#01d1de" fill="none"/>' },
   { cat:'Coastal Fleet', name:'Gun Boat',      color:'#a3b1ff', svg:'<path stroke-width="2" d="M20 1L.75 7 20 13z" stroke="#a3b1ff" fill="#a3b1ff"/>' },
@@ -23,6 +23,17 @@ const VEHICLE_TYPES = [
 
 function typeIcon(t){
   return `<svg width="21" height="15" xmlns="http://www.w3.org/2000/svg">${t.svg}</svg>`;
+}
+
+// Dev-only type registration (used by dev_mode.js). Idempotent; inserts after
+// the last entry of the same category so picker headers stay grouped.
+function registerDevTypes(list){
+  list.forEach(t=>{
+    if(VEHICLE_TYPES.some(x=>x.name===t.name)) return;
+    let idx=-1;
+    VEHICLE_TYPES.forEach((x,i)=>{ if(x.cat===t.cat) idx=i; });
+    if(idx>=0) VEHICLE_TYPES.splice(idx+1,0,t); else VEHICLE_TYPES.push(t);
+  });
 }
 
 function buildTypePicker(btnId, dropId, hiddenId){
@@ -54,16 +65,20 @@ function buildTypePicker(btnId, dropId, hiddenId){
     drop.appendChild(opt);
   });
 
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const isOpen = drop.style.display !== 'none';
-    // Close all open type pickers
-    document.querySelectorAll('.type-picker-dropdown').forEach(d => d.style.display='none');
-    if(!isOpen) drop.style.display = '';
-  });
-
-  // Close on outside click
-  document.addEventListener('click', () => { drop.style.display='none'; });
+  // Bind listeners only once, so re-running buildTypePicker (e.g. after dev
+  // types are registered) just rebuilds the options without double-toggling.
+  if(!btn.dataset.bound){
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = drop.style.display !== 'none';
+      // Close all open type pickers
+      document.querySelectorAll('.type-picker-dropdown').forEach(d => d.style.display='none');
+      if(!isOpen) drop.style.display = '';
+    });
+    // Close on outside click
+    document.addEventListener('click', () => { drop.style.display='none'; });
+  }
 }
 
 function setTypePicker(btnId, dropId, hiddenId, value){

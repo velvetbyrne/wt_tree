@@ -1,6 +1,5 @@
 // SEARCH & FILTER
 // ─────────────────────────────────────────────
-let _searchQuery = '';
 const _filterTypes = new Set(); // selected type filters
 
 function buildTypeFilterDropdown(){
@@ -44,58 +43,123 @@ function buildTypeFilterDropdown(){
 
   btn.addEventListener('click',e=>{e.stopPropagation(); dd.classList.toggle('open');});
   dd.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>dd.classList.remove('open'));
-
-  // Hook for dev_mode.js — called after the dropdown is fully built
-  if(typeof window.__devModeOnDropdownReady === 'function'){
-    window.__devModeOnDropdownReady(dd, btn);
+  // Register the outside-click closer once (function may be re-run after dev types load)
+  if(!window._typeFilterOutsideBound){
+    window._typeFilterOutsideBound=true;
+    document.addEventListener('click',()=>document.getElementById('typeFilterDropdown')?.classList.remove('open'));
   }
+}
+
+// ── FUZZY MATCHING ──
+// Per query token, in order of cost:
+//   1. substring of the compacted name ("bf109" matches "Bf 109")
+//   2. typo-tolerant approximate substring (Sellers; 1 error for 4-6 chars, 2 for 7+)
+//   3. in-order abbreviation inside a single word ("spt" -> "Spitfire")
+const _norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const _NONWORD = /[^\p{L}\p{N}]+/u;
+let _searchTokens = [];
+let _searchTimer = null;
+
+function _approxIncludes(text, pat, k){
+  const m = pat.length;
+  const col = new Array(m+1);
+  for(let i=0;i<=m;i++) col[i]=i;
+  for(let j=0;j<text.length;j++){
+    let diag = col[0]; col[0] = 0;
+    for(let i=1;i<=m;i++){
+      const up = col[i];
+      col[i] = Math.min(col[i]+1, col[i-1]+1, diag + (pat[i-1]===text[j]?0:1));
+      diag = up;
+    }
+    if(col[m] <= k) return true;
+  }
+  return false;
+}
+function _subseq(word, t){
+  let i=0;
+  for(let j=0;j<word.length;j++){ if(word[j]===t[i] && ++i===t.length) return true; }
+  return false;
+}
+function _tokenMatches(tok, words, compact){
+  if(compact.includes(tok)) return true;
+  if(tok.length < 3) return false;
+  const k = tok.length >= 7 ? 2 : tok.length >= 4 ? 1 : 0;
+  if(k && _approxIncludes(compact, tok, k)) return true;
+  return words.some(w => w[0]===tok[0] && _subseq(w, tok));
 }
 
 function bindSearch(){
   const inp = document.getElementById('searchInput');
   if(!inp) return;
   buildTypeFilterDropdown();
-  inp.addEventListener('input', ()=>{
-    _searchQuery = inp.value.trim().toLowerCase();
+  const run = ()=>{
+    _searchTokens = _norm(inp.value).split(_NONWORD).filter(Boolean);
     applySearchHighlight();
+  };
+  inp.addEventListener('input', ()=>{
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(run, 120); // debounce typing
   });
   inp.addEventListener('keydown', e=>{
-    if(e.key==='Escape'){ inp.value=''; _searchQuery=''; _filterTypes.clear(); applySearchHighlight(); }
+    if(e.key==='Escape'){
+      inp.value=''; _searchTokens=[]; _filterTypes.clear();
+      buildTypeFilterDropdown(); // resets checkboxes + button label
+      applySearchHighlight();
+    }
   });
 }
 
+let _searchMatched = null;   // Set of matching vehicle ids, or null when no search is active
+function searchClassFor(vid){
+  if(!_searchMatched) return '';
+  return _searchMatched.has(vid) ? 'search-highlight' : 'search-dim';
+}
+function folderSearchClass(f){
+  if(!_searchMatched) return '';
+  return (f.vehicleIds||[]).some(id=>_searchMatched.has(id)) ? 'search-highlight' : 'search-dim';
+}
+
 function applySearchHighlight(){
-  // Remove all existing highlights
   document.querySelectorAll('.search-highlight,.search-dim').forEach(el=>{
     el.classList.remove('search-highlight','search-dim');
   });
-  if(!_searchQuery && _filterTypes.size===0) return;
+  const active = _searchTokens.length>0 || _filterTypes.size>0;
+  document.body.classList.toggle('searching', active);
+  const bar = document.getElementById('searchCountBar');
+  if(!active){ _searchMatched = null; if(bar) bar.textContent=''; return; }
 
-  // Check every vehicle card
-  document.querySelectorAll('[data-vehicle-id]').forEach(cardEl=>{
-    const vid = cardEl.dataset.vehicleId;
-    const v = state.vehicles[vid]; if(!v) return;
-    const matches = vehicleMatchesSearch(v);
-    cardEl.classList.toggle('search-highlight', matches);
-    cardEl.classList.toggle('search-dim', !matches);
+  // Evaluate each vehicle once; reuse for cards, folders and the count.
+  const matched = new Set();
+  for(const id in state.vehicles){
+    if(vehicleMatchesSearch(state.vehicles[id])) matched.add(id);
+  }
+  _searchMatched = matched;
+  if(bar){
+    const n = matched.size;
+    bar.innerHTML = `<strong>${n}</strong> ${n===1?'Vehicle':'Vehicles'}`;
+  }
+
+  document.querySelectorAll('[data-vehicle-id]').forEach(el=>{
+    const hit = matched.has(el.dataset.vehicleId);
+    el.classList.toggle('search-highlight', hit);
+    el.classList.toggle('search-dim', !hit);
   });
-  // Also check folder closed cards — highlight if any vehicle in folder matches
-  document.querySelectorAll('[data-folder-id]').forEach(cardEl=>{
-    const fid = cardEl.dataset.folderId;
-    const f = state.folders[fid]; if(!f) return;
-    const anyMatch = (f.vehicleIds||[]).some(vid=>vehicleMatchesSearch(state.vehicles[vid]));
-    cardEl.classList.toggle('search-highlight', anyMatch);
-    cardEl.classList.toggle('search-dim', !anyMatch);
+  document.querySelectorAll('[data-folder-id]').forEach(el=>{
+    const f = state.folders[el.dataset.folderId]; if(!f) return;
+    const hit = (f.vehicleIds||[]).some(id=>matched.has(id));
+    el.classList.toggle('search-highlight', hit);
+    el.classList.toggle('search-dim', !hit);
   });
 }
 
 function vehicleMatchesSearch(v){
   if(!v) return false;
-  const typeMatch = _filterTypes.size===0 || (v.type && _filterTypes.has(v.type));
-  if(!_searchQuery) return typeMatch;
-  const hay = [v.prefix, v.manufacturer, v.name].filter(Boolean).join(' ').toLowerCase();
-  return typeMatch && hay.includes(_searchQuery);
+  if(_filterTypes.size && !(v.type && _filterTypes.has(v.type))) return false;
+  if(!_searchTokens.length) return true;
+  const words = _norm([v.prefix, v.manufacturer, v.name].filter(Boolean).join(' '))
+                  .split(_NONWORD).filter(Boolean);
+  const compact = words.join('');
+  return _searchTokens.every(t => _tokenMatches(t, words, compact));
 }
 
 
@@ -266,165 +330,4 @@ function showStats(){
 }
 
 
-// ─────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  loadFromStorage();
-  initTypePickers();
-  renderAll();
-  bindModalCloseButtons();
-  bindContextMenuDismiss();
-  bindVehicleModal();
-  bindAddVehicleModal();
-  bindConnectionModal();
-  bindAddSectionModal();
-  bindAddColumnModal();
-  bindExportImport();
-  bindReset();
-  bindScreenshot();
-  bindHideLabels();
-  bindSsHideHeaders();
-  bindArrowColor();
-  bindSearch();
-  bindStats();
-  // Bind title input
-  // Editable tree title
-  const _titleDisplay=document.getElementById('treeTitleDisplay');
-  const _titleInput=document.getElementById('treeTitleInput');
-  if(_titleDisplay && _titleInput){
-    const _syncTitle=()=>{
-      _titleDisplay.textContent=state.title||'Tech Tree Name';
-    };
-    _syncTitle();
-    _titleDisplay.addEventListener('dblclick',()=>{
-      _titleInput.value=state.title||'';
-      _titleDisplay.style.display='none';
-      _titleInput.style.display='';
-      _titleInput.focus(); _titleInput.select();
-    });
-    const _commitTitle=()=>{
-      state.title=_titleInput.value.trim();
-      saveToStorage();
-      _syncTitle();
-      _titleInput.style.display='none';
-      _titleDisplay.style.display='';
-    };
-    _titleInput.addEventListener('blur',_commitTitle);
-    _titleInput.addEventListener('keydown',e=>{if(e.key==='Enter')_commitTitle();if(e.key==='Escape'){_titleInput.style.display='none';_titleDisplay.style.display='';} });
-  }
-  bindFolderRenameModal();
-});
-
-// ─────────────────────────────────────────────
-// STORAGE
-// ─────────────────────────────────────────────
-function saveToStorage(){
-  try{ localStorage.setItem('wt_tree_state_v3', JSON.stringify(state)); }catch(e){}
-}
-function loadFromStorage(){
-  try{
-    const raw = localStorage.getItem('wt_tree_state_v3')
-             || localStorage.getItem('wt_tree_state'); // migrate old key
-    if(!raw) return;
-    const d = JSON.parse(raw);
-    state.columns     = d.columns     || state.columns;
-    state.sections    = d.sections    || state.sections;
-    state.vehicles    = d.vehicles    || {};
-    state.folders     = d.folders     || {};
-    state.grid        = d.grid        || {};
-    state.connections = d.connections || {};
-    // Migrate old single-image vehicles to images array
-    Object.values(state.vehicles).forEach(v=>{
-      if(!v.images){
-        v.images = v.img ? [{src:v.img, caption:''}] : [];
-        delete v.img;
-      }
-    });
-    migrateGrid();
-    syncGrid();
-    if(!state.arrowColor) state.arrowColor='#6a8ea0';
-    if(!state.title) state.title='';
-    // Sync nextId
-    [...state.columns.map(c=>c.id), ...state.sections.map(s=>s.id),
-     ...Object.keys(state.vehicles), ...Object.keys(state.folders)].forEach(id=>{
-       const n = parseInt((id.split('_')[1])||'0');
-       if(!isNaN(n) && n>=nextId) nextId = n+1;
-     });
-  }catch(e){}
-}
-function syncGrid(){
-  // Ensure every column has at least 1 track
-  state.columns.forEach(col=>{
-    if(!col.tracks||!col.tracks.length) col.tracks=[{id:'t1',name:''}];
-  });
-  state.sections.forEach(sec=>{
-    if(!state.grid[sec.id]) state.grid[sec.id]={};
-    state.columns.forEach(col=>{
-      if(!state.grid[sec.id][col.id]) state.grid[sec.id][col.id]={};
-      col.tracks.forEach(tr=>{
-        if(!state.grid[sec.id][col.id][tr.id]) state.grid[sec.id][col.id][tr.id]=[];
-      });
-    });
-  });
-}
-
-// Migration: old flat grid[secId][colId]=[] → new grid[secId][colId][t1]=[]
-function migrateGrid(){
-  state.columns.forEach(col=>{
-    if(!col.tracks||!col.tracks.length) col.tracks=[{id:'t1',name:''}];
-  });
-  state.sections.forEach(sec=>{
-    if(!state.grid[sec.id]) return;
-    state.columns.forEach(col=>{
-      const cell=state.grid[sec.id][col.id];
-      if(Array.isArray(cell)){
-        // Old flat format — wrap into t1
-        state.grid[sec.id][col.id]={t1:cell};
-      }
-    });
-  });
-}
-
-// ─────────────────────────────────────────────
-// RESET
-// ─────────────────────────────────────────────
-function bindReset(){
-  document.getElementById('btnReset').addEventListener('click',()=>{
-    if(!confirm('Reset the entire tech tree? This cannot be undone.')) return;
-    state = {
-      columns:[
-        {id:'c1',name:'Fighters',type:'research',tracks:[{id:'t1',name:'Fighters 1'},{id:'t_1_1773989444188',name:'Fighters 2'}]},
-        {id:'c2',name:'Attackers',type:'research',tracks:[{id:'t1',name:'Attackers'}]},
-        {id:'c3',name:'Bombers',type:'research',tracks:[{id:'t_2_1773989445074',name:'Track 2'}]},
-        {id:'c4',name:'Premium',type:'premium',tracks:[{id:'t1',name:''},{id:'t_3_1773989446244',name:'Track 2'}]},
-      ],
-      sections:[
-        {id:'s1',name:'Rank I'},{id:'s2',name:'Rank II'},
-        {id:'s_4_1774000011521',name:'Rank III'},{id:'s_5_1774000014208',name:'Rank IV'},
-        {id:'s_6_1774000016455',name:'Rank V'},{id:'s_7_1774000018709',name:'Rank VI'},
-        {id:'s_8_1774000021924',name:'Rank VII'},{id:'s_9_1774000026183',name:'Rank VIII'},
-      ],
-      vehicles:{}, folders:{},
-      grid:{
-        s1:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s2:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s_4_1774000011521:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s_5_1774000014208:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s_6_1774000016455:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s_7_1774000018709:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s_8_1774000021924:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-        s_9_1774000026183:{c1:{t1:[],t_1_1773989444188:[]},c2:{t1:[],t_38_1774108061189:[]},c3:{t_2_1773989445074:[]},c4:{t1:[],t_3_1773989446244:[]}},
-      },
-      connections:{},
-        };
-    nextId=1;
-    saveToStorage();
-    renderAll();
-  });
-}
-
-// ─────────────────────────────────────────────
-// SCREENSHOT MODE
-// ─────────────────────────────────────────────
-let hideLabelsMode = false;
+// (storage/save/load/reset functions live in storage.js — not duplicated here)

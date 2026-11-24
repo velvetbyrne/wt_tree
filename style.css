@@ -22,6 +22,9 @@
   --modal-border: #3a5060;
   --col-divider:  #3a5060;
   --folder-bg:    #2a3c48;
+  --folder-w:     214px;      /* opened-folder width (210–215) */
+  --folder-flat:  #405561;    /* opened-folder flat background */
+  --folder-border:#9fbccd;    /* opened-folder border */
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;font-size:15px;min-height:100vh;overflow-x:auto}
@@ -30,6 +33,9 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Tahoma,Geneva
 .site-header{background:var(--header-bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:8px 20px;position:sticky;top:0;z-index:100;height:56px}
 .site-title{font-size:18px;font-weight:600;color:var(--text-bright);letter-spacing:.5px}
 .header-actions{display:flex;gap:8px;align-items:center}
+
+/* virtualization spacers (required) */
+.vt-spacer{flex:0 0 auto;width:100%;pointer-events:none}
 
 /* Screenshot mode — collapse header, expand content to full page height */
 body.screenshot-mode{overflow:visible!important}
@@ -154,23 +160,51 @@ body.screenshot-mode .tree-scroll-area{
 .folder-img-placeholder{width:68px;height:58px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--text-dim);background:rgba(0,0,0,.1);border-radius:2px}
 
 /* ── FOLDER — OPEN ── */
-.folder-open-card{position:relative;overflow:hidden;width:204px;background:var(--folder-bg);border:1px solid var(--border);border-radius:0;overflow:hidden;margin:2px 0}
-/* Folder header: no rounding, subtle title bar */
-.folder-header-bar{background:rgba(0,0,0,.25);padding:4px 8px;font-size:11px;font-weight:600;color:var(--text-bright);display:flex;align-items:center;cursor:pointer;gap:4px;letter-spacing:.3px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08)}
-.folder-header-bar:hover{background:rgba(0,0,0,.35)}
-.folder-rename-btn{background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;padding:0 3px;margin-left:auto}
-.folder-rename-btn:hover{color:var(--accent)}
-.folder-items{display:flex;flex-direction:column;gap:2px;padding:3px}
-/* Folder item: no rounding, compact like WT folders */
-.folder-vehicle-item{display:flex;align-items:center;gap:0;background:var(--item);border:1px solid var(--border);border-radius:0;padding:0;cursor:pointer;transition:background .12s;height:52px;position:relative;overflow:hidden}
-.folder-vehicle-item:hover{background:var(--item-hover)}
-.folder-vehicle-item img{height:90%;width:auto;max-width:55%;object-fit:contain;position:absolute;left:4px;top:50%;transform:translateY(-50%);}
-.fv-placeholder{width:50px;height:90%;position:absolute;left:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-dim)}
-.fv-placeholder{display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-dim)}
-.fv-info{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;}
-.fv-name{position:absolute;top:3px;right:5px;font-size:12px;color:var(--text-bright);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;line-height:1.3}
-.fv-br{position:static;font-size:11px;color:#c8d0d4;font-weight:600;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
-.folder-add-btn{width:100%;margin-top:5px;font-size:13px}
+/* Open folder: a folder is visually just a grouped RUN of standard-size
+   vehicle cards (identical to standalone .vehicle-card — same width,
+   height, image, name, BR) stacked with the same 36px spacer used between
+   any two slots in a normal track. The wrapper adds only a subtle border
+   and background tint — no width/height reduction, no header bar, so the
+   whole stack aligns perfectly with the outer track's row grid. */
+.folder-open-card{
+  width:var(--folder-w); min-width:var(--folder-w); max-width:var(--folder-w);
+  box-sizing:border-box;
+  padding-left:0; padding-right:0;
+  /* slot is 204px wide: shift left by half the extra width so the folder is
+     centred on the column and the cards inside stay exactly where they were */
+  margin-left:calc((204px - var(--folder-w)) / 2);
+  position:relative; isolation:isolate;
+}
+/* Flat background + clear border, painted BEHIND the cards. It is a
+   pseudo-element (extended 2px up/down into the cards' own margins) rather
+   than a real border/padding, so it adds ZERO layout height and the row
+   alignment model stays exact. */
+.folder-open-card::before{
+  content:""; position:absolute; z-index:-1; pointer-events:none;
+  left:0; right:0; top:-2px; bottom:-2px;
+  background:var(--folder-flat);
+  box-shadow:inset 0 0 0 1px var(--folder-border);
+}
+/* no gradient on an opened folder */
+.folder-open-card::after{display:none!important}
+/* cards centred inside the folder: equal margin on the left and right */
+.folder-open-card > .vehicle-card{
+  margin-left:auto; margin-right:auto;
+  margin-top:2px; margin-bottom:2px;   /* keep the 86px row height the layout model uses */
+  max-width:100%;
+}
+
+/* Rename/collapse controls float in the top-right corner with zero layout
+   footprint (position:absolute) so the first card still starts flush,
+   exactly like any other slot in the track. */
+.folder-corner-ctrl{
+  position:absolute;top:0;right:7px;z-index:3;
+  display:flex;gap:2px;background:rgba(0,0,0,.45);border-radius:2px;padding:1px;
+}
+.folder-rename-btn,.folder-collapse-btn{background:none;border:none;color:var(--text-dim);font-size:11px;cursor:pointer;padding:1px 4px;border-radius:2px}
+.folder-rename-btn:hover,.folder-collapse-btn:hover{color:var(--text-bright);background:rgba(255,255,255,.1)}
+
+.folder-add-btn{width:204px;margin:0 calc((var(--folder-w) - 204px) / 2);font-size:11px;padding:5px 8px}
 
 /* ── ARROWS ── */
 .arrow-row{height:36px;display:flex;align-items:center;justify-content:center;position:relative}
@@ -249,6 +283,8 @@ textarea.form-input{resize:vertical}
 .context-menu li{padding:9px 16px;cursor:pointer;font-size:13px;color:var(--text);transition:background .1s,color .1s}
 .context-menu li:hover{background:rgba(91,158,201,.15);color:var(--text-bright)}
 .context-menu li.danger{color:#f08080}.context-menu li.danger:hover{background:rgba(160,48,48,.2);color:#ffaaaa}
+.context-menu li.disabled{color:var(--text-dim);cursor:default;font-style:italic}
+.context-menu li.disabled:hover{background:none;color:var(--text-dim)}
 .context-menu .ctx-sep{height:1px;background:var(--border);margin:3px 0;pointer-events:none}
 
 /* ── MISC ── */
@@ -262,7 +298,7 @@ textarea.form-input{resize:vertical}
 select.form-input option{background:#1e2a30;color:var(--text-bright)}
 
 /* ── RESERVE / BR ROW ── */
-.br-row{display:flex;flex-direction:column;gap:4px}
+.br-row{display:flex;flex-direction:column;gap:0}
 .reserve-label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0}
 .reserve-label input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px;cursor:pointer}
 
@@ -304,6 +340,8 @@ select.form-input option{background:#1e2a30;color:var(--text-bright)}
 /* "Add image" button in label */
 .btn-add-image{background:#2a4a2a;border:1px solid #3a7a3a;border-radius:3px;color:#a0e0a0;cursor:pointer;padding:2px 8px;font-size:11px;margin-left:8px;font-family:inherit;vertical-align:middle}
 .btn-add-image:hover{background:#3a5a3a}
+.btn-add-image-sec{background:#2a3a4a!important;border:1px solid #3a6a7a!important;color:#90c8d8!important}
+.btn-add-image-sec:hover{background:#2e4a5a!important;border-color:#4a8a9a!important;color:#b0dce8!important}
 
 /* ── WEAPON EDITOR ── */
 .weapon-editor-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
@@ -458,7 +496,7 @@ body.hide-labels-mode .col-track-subheaders{display:none}
 .type-picker-btn{
   text-align:left;cursor:pointer;display:flex;align-items:center;gap:8px;
   background:#1a2428;border:1px solid var(--border);color:var(--text);
-  width:100%;padding:6px 10px;font-size:13px;border-radius:3px;
+  width:100%;padding:8px 10px;font-size:13px;border-radius:3px;
 }
 .type-picker-btn:hover{border-color:var(--accent)}
 .type-picker-btn svg{flex-shrink:0}
@@ -507,16 +545,7 @@ body.hide-labels-mode .col-track-subheaders{display:none}
 .header-left{margin-left:auto}
 
 /* ── FOLDER ITEM TYPE ICON ── */
-.fv-type-ico{display:block;flex-shrink:0;filter:drop-shadow(0 0 1px rgba(0,0,0,.8));margin-bottom:2px}
-.fv-info{flex:1;min-width:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 
-.fv-br-row{display:flex;align-items:center;gap:3px;justify-content:flex-end}
-.fv-br-row .fv-type-ico{flex-shrink:0}
-.fv-br-row .fv-br{font-size:11px;color:#c8d0d4}
-
-.fv-br-row{position:absolute;bottom:3px;right:5px;display:flex;align-items:center;gap:3px;pointer-events:none;}
-
-.folder-open-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(255,255,255,.15);z-index:2;}
 
 /* Screenshot: hide-headers checkbox toggle */
 body.screenshot-hide-headers .col-group-label{display:none}
@@ -615,15 +644,11 @@ body.hide-arrows-mode #crossArrowSvg{display:none}
 
 /* ── HIDE BR ── */
 body.hide-br-mode .card-br{display:none!important}
-body.hide-br-mode .fv-br{display:none!important}
 /* When BR is hidden, card-br-wrap still shows (for type icon) but anchors right */
 body.hide-br-mode .card-br-wrap{right:6px;bottom:4px;}
-/* fv-br-row keeps showing for type icon */
-body.hide-br-mode .fv-br-row .fv-br{display:none!important}
 
 /* ── HIDE TYPE SYMBOLS ── */
-body.hide-type-ico-mode .card-type-ico,
-body.hide-type-ico-mode .fv-type-ico{display:none!important}
+body.hide-type-ico-mode .card-type-ico{display:none!important}
 
 /* ── EDITABLE TREE TITLE ── */
 .tree-title-editable{
@@ -718,22 +743,79 @@ body.hide-premium-mode .col-track-divider{ display:none!important }
   padding:4px 6px;background:rgba(0,0,0,.2);border-radius:2px;
 }
 
+/* ── BR STEPPER ── */
+.br-stepper-wrap{
+  display:inline-flex;align-items:center;gap:0;
+  border:1px solid var(--modal-border);border-radius:3px;overflow:hidden;
+  flex-shrink:0;height:34px;
+}
+.br-step-btn{
+  width:32px;height:34px;
+  background:#253540;border:none;color:var(--text-bright);
+  font-size:20px;line-height:1;cursor:pointer;flex-shrink:0;
+  transition:background .12s;user-select:none;padding:0;
+}
+.br-step-btn:hover{background:#3a5264;}
+.br-stepper-input{
+  width:58px;text-align:center;
+  border:none;border-left:1px solid var(--modal-border);border-right:1px solid var(--modal-border);
+  border-radius:0;background:#1a2428;color:var(--text-bright);
+  font-size:14px;font-weight:600;padding:6px 4px;cursor:default;height:34px;box-sizing:border-box;
+}
+/* stepper sits above checkboxes; add spacing below it */
+.br-stepper-wrap{margin-bottom:8px;}
+.br-stepper-input:focus{outline:none;}
+
+/* ── WEAPON SECTION LABELS (editor) ── */
+.weapon-section-label{
+  font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--text-dim);padding:6px 8px 3px;
+  border-top:1px solid var(--modal-border);margin-top:4px;
+}
+.weapon-section-label:first-child{border-top:none;margin-top:0;}
+.weapon-section-label-sec{color:#7ac8d8;}
+
+/* ── SECONDARY WEAPON ROW (editor) ── */
+.weapon-secondary-row{
+  border-left:2px solid #3a7a8a;
+  background:rgba(58,122,138,.08);
+}
+.weapon-secondary-label{
+  display:flex;align-items:center;gap:5px;
+  font-size:11px;color:#7ac8d8;cursor:pointer;
+  text-transform:none;letter-spacing:0;margin-top:2px;
+}
+.weapon-secondary-label input[type=checkbox]{
+  accent-color:#3a9ab0;width:13px;height:13px;cursor:pointer;
+}
+
+/* ── WEAPON SUB-HEADERS (view popup) ── */
+.wt-weapon-sub-header{
+  font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--text-dim);padding:5px 0 2px;
+  border-top:1px solid rgba(255,255,255,.06);margin-top:4px;
+}
+.wt-weapon-sub-header:first-child{border-top:none;margin-top:0;padding-top:0;}
+
 /* ── DEV TOOLS DROPDOWN ── */
 .dev-dropdown-wrap{position:relative;display:inline-block}
-.btn-dev{background:#2a2a40;border-color:#5050a0;color:#a0a0f0;padding:7px 12px;font-size:13px}
-.btn-dev:hover{background:#35355a;color:#c0c0ff;border-color:#7070c0}
+.btn-dev{
+  background:#2a2040;border:1px solid #5a3a8a;color:#c0a0f8;
+  padding:7px 12px;font-size:13px;border-radius:3px;cursor:pointer;
+  font-family:inherit;white-space:nowrap;transition:background .15s;
+}
+.btn-dev:hover{background:#3a2a50;border-color:#8a5ac8;color:#d8c0ff}
 .dev-dropdown{
-  display:none;position:absolute;top:100%;right:0;margin-top:4px;
-  background:#1e2a30;border:1px solid var(--border);border-radius:3px;
-  box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:600;min-width:200px;
+  display:none;position:absolute;top:100%;left:0;margin-top:4px;
+  background:#1e2a30;border:1px solid #5a3a8a;border-radius:3px;
+  box-shadow:0 6px 18px rgba(0,0,0,.55);z-index:600;min-width:180px;
   padding:4px 0;
 }
 .dev-dropdown.open{display:block}
 .dev-dd-header{
-  padding:5px 12px 3px;
-  font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
-  color:var(--section-lbl);background:rgba(0,0,0,.25);
-  border-bottom:1px solid var(--border);
+  padding:5px 12px 4px;font-size:10px;font-weight:700;letter-spacing:.9px;
+  text-transform:uppercase;color:#8a6ab8;border-bottom:1px solid #3a2a50;
+  margin-bottom:2px;
 }
 .dev-dd-btn{
   display:flex;align-items:center;gap:8px;
@@ -741,5 +823,28 @@ body.hide-premium-mode .col-track-divider{ display:none!important }
   color:var(--text);font-size:13px;text-align:left;cursor:pointer;
   font-family:inherit;white-space:nowrap;transition:background .1s;
 }
-.dev-dd-btn:hover{background:rgba(91,158,201,.15);color:var(--text-bright)}
-.dev-dd-btn .dev-btn-icon{font-size:15px;color:var(--accent);flex-shrink:0}
+.dev-dd-btn:hover{background:rgba(160,120,255,.12);color:var(--text-bright)}
+.dev-dd-check{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 14px;cursor:pointer;font-size:13px;color:var(--text);
+  user-select:none;white-space:nowrap;transition:background .1s;
+}
+.dev-dd-check:hover{background:rgba(160,120,255,.12);color:var(--text-bright)}
+.dev-dd-check input[type=checkbox]{accent-color:#a080e8;width:14px;height:14px;cursor:pointer}
+.dev-btn-icon{font-size:15px;color:#a080e8;flex-shrink:0}
+
+/* ── WHITE "?" PLACEHOLDER (no image loaded) ── */
+.card-image-placeholder,.folder-img-placeholder,.slide-placeholder,.img-list-thumb-ph{
+  color:#fff;font-weight:700;font-family:Roboto,'Segoe UI',sans-serif}
+.card-image-placeholder{font-size:34px}
+.folder-img-placeholder{font-size:28px;background:none}
+.slide-placeholder{font-size:64px}
+
+/* ── SEARCH RESULT COUNT (under header, outside tree canvas) ── */
+.search-count-bar{display:none;height:28px;align-items:center;padding:0 20px;
+  background:#1e2a30;border-bottom:1px solid var(--border);
+  font-size:13px;color:var(--text-dim);position:sticky;top:56px;z-index:99}
+.search-count-bar strong{color:var(--text-bright);margin-right:4px}
+body.searching .search-count-bar{display:flex}
+body.searching .tree-wrapper{height:calc(100vh - 84px)}
+body.screenshot-mode .search-count-bar{display:none}

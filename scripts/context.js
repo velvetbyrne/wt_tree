@@ -8,7 +8,11 @@ function showContextMenu(e,items){
     if(item.sep){ const li=document.createElement('li');li.className='ctx-sep';list.appendChild(li);return; }
     const li=document.createElement('li'); li.textContent=item.label;
     if(item.cls) li.classList.add(item.cls);
-    li.addEventListener('click',()=>{hideContextMenu();item.action();});
+    if(item.disabled){
+      li.classList.add('disabled');
+    } else {
+      li.addEventListener('click',()=>{hideContextMenu();item.action();});
+    }
     list.appendChild(li);
   });
   const x=Math.min(e.clientX,window.innerWidth-190);
@@ -20,6 +24,6 @@ function hideContextMenu(){ document.getElementById('contextMenu').classList.rem
 function bindContextMenuDismiss(){
   document.addEventListener('click',e=>{ if(!e.target.closest('#contextMenu')) hideContextMenu(); });
   document.addEventListener('contextmenu',e=>{
-    if(!e.target.closest('.vehicle-card')&&!e.target.closest('.folder-open-card')) hideContextMenu();
+    if(!e.target.closest('.vehicle-card')&&!e.target.closest('.folder-open-card')&&!e.target.closest('.arrow-hit-area')) hideContextMenu();
   });
 }

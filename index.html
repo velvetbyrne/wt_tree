@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>War Thunder Tech Tree Maker</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts: Roboto, used for vehicle/item names in tree and popup views -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
   <!-- Marked.js for Markdown rendering -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 </head>
@@ -24,7 +28,8 @@
       <button class="btn btn-primary" id="btnExport">Export ▾</button>
       <div class="export-dropdown" id="exportDropdown">
         <button class="export-dd-item" id="btnExportJson">Export JSON</button>
-        <button class="export-dd-item" id="btnExportPng">Export PNG</button>
+		<button class="export-dd-item" id="btnExportHtml">Export HTML</button>
+		<button class="export-dd-item" id="btnExportPng">Export PNG</button>
       </div>
     </div>
     <span class="hdr-divider"></span>
@@ -51,6 +56,9 @@
     <span class="site-title">WT Tech Tree Maker</span>
   </div>
 </header>
+
+<!-- Search result count: under header, outside the tree canvas -->
+<div class="search-count-bar" id="searchCountBar"></div>
 
 <main class="tree-wrapper">
   <div class="tree-scroll-area" id="treeScrollArea">
@@ -138,7 +146,11 @@
       <div class="form-group">
         <label>BR</label>
         <div class="br-row">
-          <input type="number" id="vmEditBR" class="form-input" step="0.1" />
+          <div class="br-stepper-wrap">
+            <button type="button" class="br-step-btn" id="vmBRDown">&#8722;</button>
+            <input type="text" id="vmEditBR" class="form-input br-stepper-input" readonly />
+            <button type="button" class="br-step-btn" id="vmBRUp">&#43;</button>
+          </div>
           <label class="reserve-label"><input type="checkbox" id="vmEditReserve" /> Reserve</label>
           <label class="reserve-label"><input type="checkbox" id="vmEditNewItem" /> New item ribbon</label>
         </div>
@@ -169,7 +181,8 @@
       <!-- Weapons list -->
       <div class="form-group">
         <label>Weapons <span class="form-hint">(optional)</span>
-          <button type="button" class="btn-add-image" id="vmAddWeaponBtn">Add weapon</button>
+          <button type="button" class="btn-add-image" id="vmAddWeaponBtn">+ Main</button>
+          <button type="button" class="btn-add-image btn-add-image-sec" id="vmAddSecWeaponBtn">+ Secondary</button>
         </label>
         <div id="vmWeaponList" class="weapon-editor-list"></div>
       </div>
@@ -184,7 +197,7 @@
             <input type="color" id="vmEditColor" class="form-input color-picker" />
             <button type="button" class="btn-color-preset" id="vmPresetResearch" title="Research" style="background:#314654">Research</button>
             <button type="button" class="btn-color-preset" id="vmPresetPremium"  title="Premium"  style="background:#3d361c">Premium</button>
-            <button type="button" class="btn-color-preset" id="vmPresetWarbonds" title="Warbonds" style="background:#344c30">Warbonds</button>
+            <button type="button" class="btn-color-preset" id="vmPresetSquad" title="Squad" style="background:#344c30">Squad</button>
           </div>
         </div>
       </div>
@@ -221,7 +234,11 @@
     <div class="form-group">
       <label>BR</label>
       <div class="br-row">
-        <input type="number" id="avBR" class="form-input" step="0.1" value="1.0" />
+        <div class="br-stepper-wrap">
+          <button type="button" class="br-step-btn" id="avBRDown">&#8722;</button>
+          <input type="text" id="avBR" class="form-input br-stepper-input" readonly />
+          <button type="button" class="br-step-btn" id="avBRUp">&#43;</button>
+        </div>
         <label class="reserve-label"><input type="checkbox" id="avReserve" /> Reserve</label>
         <label class="reserve-label"><input type="checkbox" id="avNewItem" /> New item ribbon</label>
       </div>
@@ -250,7 +267,8 @@
     <!-- Weapons list -->
     <div class="form-group">
       <label>Weapons <span class="form-hint">(optional)</span>
-        <button type="button" class="btn-add-image" id="avAddWeaponBtn">Add weapon</button>
+        <button type="button" class="btn-add-image" id="avAddWeaponBtn">+ Main</button>
+        <button type="button" class="btn-add-image btn-add-image-sec" id="avAddSecWeaponBtn">+ Secondary</button>
       </label>
       <div id="avWeaponList" class="weapon-editor-list"></div>
     </div>
@@ -265,7 +283,7 @@
           <input type="color" id="avColor" class="form-input color-picker" value="#314654" />
           <button type="button" class="btn-color-preset" id="avPresetResearch" title="Research" style="background:#314654">Research</button>
           <button type="button" class="btn-color-preset" id="avPresetPremium"  title="Premium"  style="background:#3d361c">Premium</button>
-          <button type="button" class="btn-color-preset" id="avPresetWarbonds" title="Warbonds" style="background:#344c30">Warbonds</button>
+          <button type="button" class="btn-color-preset" id="avPresetSquad" title="Squad" style="background:#344c30">Squad</button>
         </div>
       </div>
     </div>
@@ -412,11 +430,10 @@
 <script src="scripts/utils.js"></script>
 <script src="scripts/context.js"></script>
 <script src="scripts/ui.js"></script>
+<script src="scripts/export_html.js"></script>
 <input type="hidden" id="vmEditPremium" value="false"/>
 <input type="hidden" id="avPremium" value="false"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- dev_mode.js: place in scripts/ folder to enable Dev Tools dropdown in the header.
-     If absent it 404s silently — the site works normally without it. -->
-<script src="scripts/dev_mode.js" onerror="void 0;"></script>
+<script src="scripts/dev_mode.js"></script>
 </body>
 </html>
